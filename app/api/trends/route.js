@@ -1,19 +1,37 @@
 import { NextResponse } from "next/server";
 
-// این روت ویدیوهای ترند و پربازدید فارسی را در نیچ کانال پیدا می‌کند
+// ترندهای عمیق و باکیفیت فارسی در نیچ روانشناسی/موفقیت (بدون شورت)
 export const dynamic = "force-dynamic";
 
-// کلمات کلیدی پیش‌فرض نیچ کانال Get Success (روانشناسی + موفقیت)
+// موضوعات عمیق هم‌سبک کانال‌های قوی فارسی (WOW Success، قدرت کلام و ...)
 const DEFAULT_QUERIES = [
-  "موفقیت",
-  "انگیزشی",
-  "روانشناسی موفقیت",
-  "اعتماد به نفس",
-  "هدف گذاری",
-  "عادت های موفقیت",
-  "ثروت ذهنی",
-  "رشد فردی",
+  "قدرت کلام",
+  "قانون جذب",
+  "ذهن ثروتمند",
+  "ضمیر ناخودآگاه",
+  "خودشناسی",
+  "عزت نفس",
+  "موفقیت واقعی",
+  "باورهای محدودکننده",
+  "روانشناسی ثروت",
+  "هدف زندگی",
+  "آرامش درونی",
+  "تغییر سبک زندگی",
+  "wow success",
+  "رشد فردی عمیق",
 ];
+
+const PERSIAN = /[؀-ۿ]/; // برای تشخیص محتوای فارسی
+
+function searchUrl(query, apiKey, publishedAfter, duration) {
+  return (
+    `https://www.googleapis.com/youtube/v3/search?part=snippet` +
+    `&q=${encodeURIComponent(query)}` +
+    `&type=video&maxResults=20&order=viewCount&relevanceLanguage=fa` +
+    `&videoDuration=${duration}` +
+    `&publishedAfter=${publishedAfter}&key=${apiKey}`
+  );
+}
 
 export async function POST(req) {
   try {
@@ -27,54 +45,57 @@ export async function POST(req) {
 
     const body = await req.json().catch(() => ({}));
     const userQuery = (body.query || "").trim();
-
     const query =
       userQuery ||
       DEFAULT_QUERIES[Math.floor(Math.random() * DEFAULT_QUERIES.length)];
 
-    // ویدیوهای فارسی، مرتب بر اساس بازدید، یک ماه اخیر (۳۰ روز)
+    // یک ماه اخیر (۳۰ روز)
     const publishedAfter = new Date(
       Date.now() - 30 * 24 * 60 * 60 * 1000
     ).toISOString();
 
-    const searchUrl =
-      `https://www.googleapis.com/youtube/v3/search?part=snippet` +
-      `&q=${encodeURIComponent(query)}` +
-      `&type=video&maxResults=15&order=viewCount&relevanceLanguage=fa` +
-      `&publishedAfter=${publishedAfter}&key=${apiKey}`;
-
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) {
-      const errText = await searchRes.text();
-      return NextResponse.json(
-        { error: "خطا در ارتباط با YouTube API", detail: errText },
-        { status: 502 }
-      );
+    // فقط ویدیوهای متوسط (۴ تا ۲۰ دقیقه) و بلند (بالای ۲۰ دقیقه) → بدون شورت
+    const durations = ["medium", "long"];
+    let items = [];
+    for (const d of durations) {
+      const res = await fetch(searchUrl(query, apiKey, publishedAfter, d));
+      if (res.ok) {
+        const data = await res.json();
+        items = items.concat(data.items || []);
+      }
     }
-    const searchData = await searchRes.json();
-    const items = searchData.items || [];
-    const videoIds = items.map((it) => it.id && it.id.videoId).filter(Boolean);
 
+    // حذف موارد تکراری بر اساس آی‌دی ویدیو
+    const seen = new Set();
+    items = items.filter((it) => {
+      const id = it.id && it.id.videoId;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    const videoIds = items.map((it) => it.id.videoId);
+
+    // آمار بازدید
     let statsMap = {};
-    if (videoIds.length) {
-      const statsUrl =
-        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet` +
-        `&id=${videoIds.join(",")}&key=${apiKey}`;
-      const statsRes = await fetch(statsUrl);
+    for (let i = 0; i < videoIds.length; i += 50) {
+      const chunk = videoIds.slice(i, i + 50);
+      const statsRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics` +
+          `&id=${chunk.join(",")}&key=${apiKey}`
+      );
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         (statsData.items || []).forEach((v) => {
           statsMap[v.id] = {
             views: Number(v.statistics?.viewCount || 0),
             likes: Number(v.statistics?.likeCount || 0),
-            channel: v.snippet?.channelTitle || "",
           };
         });
       }
     }
 
     const trends = items
-      .filter((it) => it.id && it.id.videoId)
       .map((it) => {
         const id = it.id.videoId;
         const st = statsMap[id] || {};
@@ -89,7 +110,15 @@ export async function POST(req) {
           likes: st.likes || 0,
         };
       })
-      .sort((a, b) => b.views - a.views);
+      // فقط محتوای فارسی واقعی و بدون شورت
+      .filter((t) => {
+        const text = `${t.title} ${t.channel}`;
+        if (!PERSIAN.test(text)) return false;
+        if (/#?shorts?\b/i.test(t.title)) return false;
+        return true;
+      })
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 15);
 
     return NextResponse.json({ query, trends });
   } catch (err) {

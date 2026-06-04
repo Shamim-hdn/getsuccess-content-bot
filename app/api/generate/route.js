@@ -3,34 +3,28 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+// پیش‌فرض: Gemini 2.5 Pro برای کیفیت بهتر نوشتن
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-pro";
 
 function buildPrompt(topic, trendTitles) {
   const trendsBlock =
     trendTitles && trendTitles.length
-      ? `\n\nبرای الهام، این تعدادی از تایتل‌های ترند و پربازدید اخیر در همین نیچ هستند:\n- ${trendTitles.join(
-          "\n- "
-        )}`
+      ? `\n\nبرای الهام، چند تایتل ترند اخیر در همین نیچ:\n- ${trendTitles.join("\n- ")}`
       : "";
 
   return `تو یک متخصص حرفه‌ای تولید محتوای یوتیوب فارسی در نیچ «روانشناسی و موفقیت» برای کانالی به نام «Get Success» هستی.
-کانال هفته‌ای یک ویدیوی اصلی حدوداً ۱۵ دقیقه‌ای و دو شورت منتشر می‌کند. لحن کانال انگیزشی، عمیق، علمی اما ساده و قابل‌فهم برای عموم است.
+کانال هفته‌ای یک ویدیوی اصلی حدوداً ۱۵ دقیقه‌ای منتشر می‌کند. لحن: عمیق، علمی اما ساده، انگیزشی، انسانی و قابل‌فهم برای عموم. از کلیشه‌های تکراری پرهیز کن و نوشته را روان و گیرا بنویس.
 
 موضوع ویدیوی این هفته: «${topic}»${trendsBlock}
 
-یک بستهٔ کامل محتوا تولید کن. خروجی را فقط و فقط به صورت یک شیء JSON معتبر (بدون متن اضافه، بدون \`\`\`) با این کلیدها بده:
-
-{
-  "titles": [سه تایتل جذاب و کلیک‌خور فارسی به صورت آرایه‌ای از رشته‌ها],
-  "script": "اسکریپت کامل ویدیوی ۱۵ دقیقه‌ای فارسی (حداقل ۱۸۰۰ کلمه). شامل قلاب قوی در ۱۵ ثانیه اول، مقدمه، بدنه با چند بخش مشخص و مثال‌های ملموس، و یک جمع‌بندی با دعوت به اقدام و درخواست سابسکرایب. با علامت‌گذاری بخش‌ها مثل [قلاب]، [مقدمه]، [بخش ۱] و غیره.",
-  "tags": "تگ‌های یوتیوب فارسی و انگلیسی مرتبط، جدا شده با کاما، دقیقاً نزدیک به ۷۰۰ کاراکتر (نه بیشتر از ۷۰۰).",
-  "thumbnailPrompt": "یک پرامپت دقیق و تصویری به زبان انگلیسی برای ساخت تامبنیل با هوش مصنوعی (Midjourney/DALL-E)، شامل ترکیب‌بندی، احساسات چهره، رنگ‌بندی پرکنتراست، و فضای متن.",
-  "timestamps": "تایم‌استمپ‌های ویدیو برای توضیحات یوتیوب، هر خط به فرمت 00:00 عنوان بخش، متناسب با اسکریپت و حدود ۱۵ دقیقه.",
-  "instagramCaption": "کپشن اینستاگرام فارسی جذاب با چند خط، چند ایموجی مناسب، و حدود ۱۰ هشتگ فارسی/انگلیسی مرتبط در انتها.",
-  "shortCaption": "کپشن کوتاه و پرانرژی برای شورت/ریلز فارسی با ۳ تا ۵ هشتگ ترند."
-}
-
-دقت کن: کل خروجی باید JSON معتبر باشد و فیلد tags از ۷۰۰ کاراکتر بیشتر نشود.`;
+یک بستهٔ کامل محتوا تولید کن. خروجی را فقط و فقط به صورت JSON معتبر با این کلیدها بده:
+- titles: آرایه‌ای از سه تایتل جذاب و کلیک‌خور فارسی
+- script: اسکریپت کامل ویدیوی ۱۵ دقیقه‌ای فارسی (حدود ۱۸۰۰ تا ۲۲۰۰ کلمه) شامل قلاب قوی در ۱۵ ثانیه اول، مقدمه، چند بخش با مثال‌های ملموس و داستان، و جمع‌بندی با دعوت به اقدام و سابسکرایب. بخش‌ها را با [قلاب]، [مقدمه]، [بخش ۱] و غیره مشخص کن.
+- tags: تگ‌های فارسی و انگلیسی مرتبط جدا شده با کاما، نزدیک به ۷۰۰ کاراکتر (نه بیشتر از ۷۰۰)
+- thumbnailPrompt: پرامپت تصویری دقیق به انگلیسی برای ساخت تامبنیل با هوش مصنوعی
+- timestamps: تایم‌استمپ‌های ویدیو برای توضیحات، هر خط به فرمت 00:00 عنوان بخش، متناسب با ۱۵ دقیقه
+- instagramCaption: کپشن اینستاگرام فارسی جذاب با چند ایموجی و حدود ۱۰ هشتگ
+- shortCaption: کپشن کوتاه و پرانرژی برای شورت با ۳ تا ۵ هشتگ`;
 }
 
 export async function POST(req) {
@@ -46,7 +40,6 @@ export async function POST(req) {
     const body = await req.json().catch(() => ({}));
     const topic = (body.topic || "").trim();
     const trendTitles = Array.isArray(body.trendTitles) ? body.trendTitles.slice(0, 8) : [];
-
     if (!topic) {
       return NextResponse.json({ error: "موضوع ویدیو را وارد کنید." }, { status: 400 });
     }
@@ -57,7 +50,7 @@ export async function POST(req) {
       contents: [{ parts: [{ text: buildPrompt(topic, trendTitles) }] }],
       generationConfig: {
         temperature: 0.9,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 32768,
         responseMimeType: "application/json",
       },
     };
@@ -69,31 +62,45 @@ export async function POST(req) {
     });
 
     if (!res.ok) {
-      const errText = await res.text();
       return NextResponse.json(
-        { error: "خطا در ارتباط با Gemini API", detail: errText },
+        { error: "خطا در ارتباط با Gemini API", detail: await res.text() },
         { status: 502 }
       );
     }
 
     const data = await res.json();
-    const text =
-      data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+    const cand = data?.candidates?.[0];
+    const finish = cand?.finishReason || "";
+    const text = cand?.content?.parts?.map((p) => p.text).join("") || "";
+
+    if (!text) {
+      return NextResponse.json(
+        { error: "مدل خروجی خالی برگرداند.", detail: `finishReason: ${finish}` },
+        { status: 500 }
+      );
+    }
 
     let parsed;
     try {
       parsed = JSON.parse(text);
     } catch (e) {
-      // اگر مدل کد فنس گذاشت یا متن اضافه داشت، JSON را استخراج کن
       const match = text.match(/\{[\s\S]*\}/);
       if (match) {
-        parsed = JSON.parse(match[0]);
-      } else {
-        return NextResponse.json(
-          { error: "خروجی مدل قابل خواندن نبود.", raw: text },
-          { status: 500 }
-        );
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch (e2) {}
       }
+    }
+
+    if (!parsed) {
+      const hint =
+        finish === "MAX_TOKENS"
+          ? "خروجی به‌خاطر طولانی بودن قطع شد. یک بار دیگر امتحان کن."
+          : `finishReason: ${finish}`;
+      return NextResponse.json(
+        { error: "خروجی مدل قابل خواندن نبود.", detail: hint },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ topic, result: parsed });
