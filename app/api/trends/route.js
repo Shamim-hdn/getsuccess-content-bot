@@ -28,14 +28,13 @@ export async function POST(req) {
     const body = await req.json().catch(() => ({}));
     const userQuery = (body.query || "").trim();
 
-    // اگر کاربر موضوع داد همان را جستجو کن، وگرنه یک کلمه کلیدی تصادفی از نیچ
     const query =
       userQuery ||
       DEFAULT_QUERIES[Math.floor(Math.random() * DEFAULT_QUERIES.length)];
 
-    // جستجوی ویدیوهای فارسی، مرتب‌سازی بر اساس بازدید، یک ماه اخیر
+    // ویدیوهای فارسی، مرتب بر اساس بازدید، یک ماه اخیر (۳۰ روز)
     const publishedAfter = new Date(
-      Date.now() - 60 * 24 * 60 * 60 * 1000
+      Date.now() - 30 * 24 * 60 * 60 * 1000
     ).toISOString();
 
     const searchUrl =
@@ -54,11 +53,8 @@ export async function POST(req) {
     }
     const searchData = await searchRes.json();
     const items = searchData.items || [];
-    const videoIds = items
-      .map((it) => it.id && it.id.videoId)
-      .filter(Boolean);
+    const videoIds = items.map((it) => it.id && it.id.videoId).filter(Boolean);
 
-    // گرفتن آمار بازدید برای هر ویدیو
     let statsMap = {};
     if (videoIds.length) {
       const statsUrl =

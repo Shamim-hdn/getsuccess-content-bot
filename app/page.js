@@ -81,7 +81,12 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "خطا در تولید محتوا");
+      if (!res.ok) {
+        const d = data.detail
+          ? "\n" + (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail))
+          : "";
+        throw new Error((data.error || "خطا در تولید محتوا") + d);
+      }
       setResult(data.result);
       window.scrollTo({ top: 99999, behavior: "smooth" });
     } catch (e) {
