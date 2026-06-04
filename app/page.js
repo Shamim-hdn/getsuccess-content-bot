@@ -80,7 +80,20 @@ export default function Home() {
           trendTitles: trends.slice(0, 8).map((x) => x.title),
         }),
       });
-      const data = await res.json();
+
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (parseErr) {
+        if (res.status === 504 || /timeout|timed out/i.test(raw)) {
+          throw new Error(
+            "زمان پاسخ‌گویی سرور تمام شد (مدل Pro کند است). یک بار دیگر امتحان کن. اگر تکرار شد، در Vercel قابلیت Fluid Compute را روشن کن یا مدل را موقتاً به gemini-2.5-flash برگردان."
+          );
+        }
+        throw new Error("پاسخ نامعتبر از سرور:\n" + raw.slice(0, 300));
+      }
+
       if (!res.ok) {
         const d = data.detail
           ? "\n" + (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail))
@@ -147,7 +160,7 @@ export default function Home() {
       {loadingGen && (
         <div className="panel loading">
           <div className="spinner" />
-          در حال نوشتن اسکریپت ۱۵ دقیقه‌ای و بقیهٔ محتوا... چند ثانیه صبر کن
+          در حال نوشتن اسکریپت ۱۵ دقیقه‌ای و بقیهٔ محتوا... (مدل Pro کمی کندتر است، تا ۱ دقیقه صبر کن)
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // پیش‌فرض: Gemini 2.5 Pro برای کیفیت بهتر نوشتن
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-pro";
